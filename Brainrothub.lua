@@ -97,6 +97,9 @@ local function Button(parent,text,size,pos)
 
     return B
 end
+local minimize = Button(Main, "—", UDim2.fromOffset(30,28), UDim2.new(1,-72,0,7))
+local close = Button(Main, "X", UDim2.fromOffset(30,28), UDim2.new(1,-36,0,7))
+local topbar = Title
 
 local function Label(parent,text,height)
     local L = Instance.new("TextLabel")
@@ -627,6 +630,6 @@ local Continue = Button(Popup,"CONTINUE",UDim2.new(1,-20,0,30),UDim2.new(0,10,1,
 Continue.ZIndex = 11
 Continue.MouseButton1Click:Connect(function() Popup:Destroy() end)
 
-showPage("MAIN")
+ShowPage("MAIN")
 SetStatus("Ready - Studio prototype")
 print("BrainrotHub "..VERSION.." loaded")
