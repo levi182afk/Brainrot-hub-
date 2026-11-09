@@ -1,0 +1,114 @@
+
+-- BrainrotHub v1.8 SERVER INTEGRATION
+-- Place in ServerScriptService in your own Roblox experience.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
+
+local folder = ReplicatedStorage:FindFirstChild("BrainrotHubRemotes")
+if not folder then
+    folder = Instance.new("Folder")
+    folder.Name = "BrainrotHubRemotes"
+    folder.Parent = ReplicatedStorage
+end
+
+local function remote(name,className)
+    local r = folder:FindFirstChild(name)
+    if not r then
+        r = Instance.new(className)
+        r.Name = name
+        r.Parent = folder
+    end
+    return r
+end
+
+local SetAutoSteal = remote("SetAutoSteal","RemoteEvent")
+local GetVisibleBrainrots = remote("GetVisibleBrainrots","RemoteFunction")
+local RequestTeleport = remote("RequestTeleportToBrainrot","RemoteEvent")
+
+SetAutoSteal.OnServerEvent:Connect(function(player,enabled)
+    if typeof(enabled) ~= "boolean" then return end
+    player:SetAttribute("BrainrotHubAutoSteal",enabled)
+end)
+
+local function getBaseCFrame(player)
+    -- Adapt this to your own plot/base system.
+    local bases = workspace:FindFirstChild("PlayerBases")
+    local base = bases and bases:FindFirstChild(tostring(player.UserId))
+    local spawn = base and base:FindFirstChild("BaseSpawn",true)
+
+    if spawn and spawn:IsA("BasePart") then
+        return spawn.CFrame + Vector3.new(0,4,0)
+    end
+
+    return nil
+end
+
+-- Call this ONLY from your server's real collection handler,
+-- after it has verified that the player successfully collected the item.
+local function onBrainrotCollected(player)
+    if player:GetAttribute("BrainrotHubAutoSteal") ~= true then
+        return
+    end
+
+    local destination = getBaseCFrame(player)
+    local character = player.Character
+
+    if destination and character then
+        character:PivotTo(destination)
+    end
+end
+
+GetVisibleBrainrots.OnServerInvoke = function(player)
+    local results = {}
+
+    for _,model in ipairs(CollectionService:GetTagged("Brainrot")) do
+        if model:IsDescendantOf(workspace) then
+            local id = model:GetAttribute("BrainrotId")
+
+            if id then
+                table.insert(results,{
+                    Id = tostring(id),
+                    Name = tostring(model:GetAttribute("BrainrotName") or model.Name),
+                    Rarity = tostring(model:GetAttribute("Rarity") or "Unknown"),
+                    Mutation = tostring(model:GetAttribute("Mutation") or "None")
+                })
+            end
+        end
+    end
+
+    return results
+end
+
+RequestTeleport.OnServerEvent:Connect(function(player,id)
+    if typeof(id) ~= "string" then return end
+
+    local target
+
+    for _,model in ipairs(CollectionService:GetTagged("Brainrot")) do
+        if tostring(model:GetAttribute("BrainrotId")) == id then
+            target = model
+            break
+        end
+    end
+
+    if not target then return end
+
+    -- Add your game's permission, distance, and eligibility checks here.
+    local part = target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart",true)
+    local character = player.Character
+
+    if part and character then
+        character:PivotTo(part.CFrame + Vector3.new(0,4,0))
+    end
+end)
+
+-- Make this function available to your existing server collection script:
+_G.BrainrotHubOnBrainrotCollected = onBrainrotCollected
+
+Players.PlayerRemoving:Connect(function(player)
+    player:SetAttribute("BrainrotHubAutoSteal",nil)
+end)
+
+print("BrainrotHub server integration ready")
